@@ -1,0 +1,37 @@
+import Foundation
+import ScreenSaver
+
+enum Defaults {
+    private static let moduleName = "PDBStructure"
+
+    private static var store: ScreenSaverDefaults {
+        ScreenSaverDefaults(forModuleWithName: moduleName)!
+    }
+
+    static func registerDefaults() {
+        store.register(defaults: [
+            "DisplayPeriod":         30,
+            "CacheSize":             100,
+            "EnableInternetAccess":  true,
+            "FullTextualAnnotation": true,
+            "OnlyLoadLocalFiles":    false,
+            "RenderMode":            RenderMode.backbone.rawValue,
+        ])
+    }
+
+    static var displayPeriod: TimeInterval { TimeInterval(store.integer(forKey: "DisplayPeriod")) }
+    static var cacheSize:     Int          { store.integer(forKey: "CacheSize") }
+    static var enableInternet:  Bool       { store.bool(forKey: "EnableInternetAccess") }
+    static var fullAnnotation:  Bool       { store.bool(forKey: "FullTextualAnnotation") }
+    static var onlyLocal:       Bool       { store.bool(forKey: "OnlyLoadLocalFiles") }
+
+    static var renderMode: RenderMode {
+        get { RenderMode(rawValue: store.integer(forKey: "RenderMode")) ?? .backbone }
+        set { store.set(newValue.rawValue, forKey: "RenderMode"); store.synchronize() }
+    }
+
+    static func write(_ values: [String: Any]) {
+        for (k, v) in values { store.set(v, forKey: k) }
+        store.synchronize()
+    }
+}

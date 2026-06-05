@@ -1,0 +1,14 @@
+# Build output
+build/
+*.saver
+
+# XcodeGen output (project.yml is the source of truth)
+*.xcodeproj/
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# macOS
+.DS_Store

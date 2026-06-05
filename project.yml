@@ -1,0 +1,38 @@
+name: PDBStructure
+options:
+  bundleIdPrefix: edu.berkeley
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    PRODUCT_NAME: PDBStructure
+    DEAD_CODE_STRIPPING: YES
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  PDBStructure:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources
+    resources:
+      - path: Resources/pdb_entry_type.txt
+      - path: Resources/PDB
+        type: folder
+    info:
+      path: Info.plist
+    settings:
+      base:
+        WRAPPER_EXTENSION: saver
+        MACH_O_TYPE: mh_bundle
+        LD_RUNPATH_SEARCH_PATHS: "@loader_path/../Frameworks @executable_path/../Frameworks"
+        PRODUCT_BUNDLE_IDENTIFIER: edu.berkeley.PDBStructure
+        SKIP_INSTALL: YES
+    dependencies:
+      - sdk: ScreenSaver.framework
+      - sdk: SceneKit.framework
+      - sdk: AppKit.framework

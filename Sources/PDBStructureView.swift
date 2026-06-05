@@ -1,0 +1,181 @@
+import Cocoa
+import ScreenSaver
+import SceneKit
+
+@objc(PDBStructureView)
+public final class PDBStructureView: ScreenSaverView {
+
+    private let scnView = SCNView()
+    private let scene = SCNScene()
+    private let cameraNode = SCNNode()
+    private var moleculeNode: SCNNode?
+
+    private let fetcher = PDBFetcher()
+    private var lastSwapAt: Date = .distantPast
+    private var swapInFlight = false
+    private let infoPanel = InfoPanel()
+    private var isPreviewMode = false
+
+    private var currentStructure: ParsedStructure?
+    private var currentMode: RenderMode = .backbone
+
+    public override init?(frame: NSRect, isPreview: Bool) {
+        super.init(frame: frame, isPreview: isPreview)
+        self.isPreviewMode = isPreview
+        Defaults.registerDefaults()
+        self.currentMode = Defaults.renderMode
+        commonInit()
+    }
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        Defaults.registerDefaults()
+        self.currentMode = Defaults.renderMode
+        commonInit()
+    }
+
+    private func commonInit() {
+        animationTimeInterval = 1.0 / 30.0
+        wantsLayer = true
+
+        scnView.frame = bounds
+        scnView.autoresizingMask = [.width, .height]
+        scnView.scene = scene
+        scnView.backgroundColor = .black
+        scnView.antialiasingMode = .multisampling4X
+        scnView.allowsCameraControl = false
+        addSubview(scnView)
+
+        scene.background.contents = NSColor.black
+
+        let cam = SCNCamera()
+        cam.zNear = 0.1
+        cam.zFar = 5000
+        cameraNode.camera = cam
+        cameraNode.position = SCNVector3(0, 0, CGFloat(RendererOptions.cameraDistance))
+        scene.rootNode.addChildNode(cameraNode)
+
+        let key = SCNNode()
+        key.light = SCNLight()
+        key.light!.type = .omni
+        key.light!.intensity = 1100
+        key.position = SCNVector3(120, 140, 220)
+        scene.rootNode.addChildNode(key)
+
+        let ambient = SCNNode()
+        ambient.light = SCNLight()
+        ambient.light!.type = .ambient
+        ambient.light!.color = NSColor(white: 0.35, alpha: 1)
+        scene.rootNode.addChildNode(ambient)
+
+        infoPanel.isHidden = isPreviewMode || !Defaults.fullAnnotation
+        infoPanel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(infoPanel)
+        NSLayoutConstraint.activate([
+            infoPanel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 36),
+            infoPanel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -36),
+            infoPanel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.48),
+        ])
+
+        triggerSwap()
+    }
+
+    public override func animateOneFrame() {
+        super.animateOneFrame()
+        if Date().timeIntervalSince(lastSwapAt) > Defaults.displayPeriod {
+            triggerSwap()
+        }
+    }
+
+    private func triggerSwap() {
+        guard !swapInFlight else { return }
+        swapInFlight = true
+        lastSwapAt = Date()
+
+        fetcher.fetchRandom { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.swapInFlight = false
+                switch result {
+                case .success(let parsed):
+                    self.currentStructure = parsed
+                    self.installMolecule(parsed, mode: self.currentMode)
+                    self.infoPanel.isHidden = self.isPreviewMode || !Defaults.fullAnnotation
+                    self.infoPanel.update(with: parsed)
+                case .failure(let err):
+                    NSLog("PDBStructure: fetch failed: \(err)")
+                    self.lastSwapAt = .distantPast
+                }
+            }
+        }
+    }
+
+    private func installMolecule(_ parsed: ParsedStructure, mode: RenderMode) {
+        let new = mode.renderer.build(from: parsed)
+        new.opacity = 0
+        scene.rootNode.addChildNode(new)
+        new.runAction(.fadeIn(duration: 0.6))
+
+        if let old = moleculeNode {
+            old.runAction(.sequence([.fadeOut(duration: 0.6), .removeFromParentNode()]))
+        }
+        moleculeNode = new
+    }
+
+    // MARK: Keyboard shortcuts
+
+    public override var acceptsFirstResponder: Bool { true }
+
+    public override func keyDown(with event: NSEvent) {
+        guard let chars = event.charactersIgnoringModifiers else {
+            super.keyDown(with: event); return
+        }
+        switch chars {
+        case "1":
+            if let id = currentStructure?.id,
+               let url = URL(string: "https://www.rcsb.org/structure/\(id.uppercased())") {
+                NSWorkspace.shared.open(url)
+            }
+        case "2":
+            saveScreenshot()
+        case "3":
+            currentMode = currentMode.next()
+            Defaults.renderMode = currentMode
+            if let s = currentStructure { installMolecule(s, mode: currentMode) }
+        case "4":
+            triggerSwap()
+        default:
+            super.keyDown(with: event)
+        }
+    }
+
+    private func saveScreenshot() {
+        let image = scnView.snapshot()
+        guard let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else { return }
+        let id = currentStructure?.id.uppercased() ?? "Structure"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let stamp = formatter.string(from: Date())
+        let url = FileManager.default
+            .urls(for: .desktopDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("PDBStructure-\(id)-\(stamp).png")
+        try? png.write(to: url)
+        NSLog("PDBStructure: screenshot → \(url.path)")
+    }
+
+    // MARK: Configure sheet
+
+    public override var hasConfigureSheet: Bool { true }
+    public override var configureSheet: NSWindow? {
+        ConfigureSheetController.shared.window(applyHandler: { [weak self] in
+            guard let self else { return }
+            self.currentMode = Defaults.renderMode
+            self.infoPanel.isHidden = self.isPreviewMode || !Defaults.fullAnnotation
+            if let s = self.currentStructure {
+                self.installMolecule(s, mode: self.currentMode)
+            }
+        })
+    }
+}
