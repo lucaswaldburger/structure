@@ -14,7 +14,7 @@ enum SpacefillRenderer: Renderer {
         func sphere(for element: String) -> SCNGeometry {
             if let g = spheres[element] { return g }
             let g = SCNSphere(radius: CGFloat(CPKPalette.radius(forElement: element)))
-            g.segmentCount = 14
+            g.segmentCount = 32
             let mat = SCNMaterial()
             mat.diffuse.contents = CPKPalette.color(forElement: element)
             mat.specular.contents = NSColor(white: 0.5, alpha: 1)

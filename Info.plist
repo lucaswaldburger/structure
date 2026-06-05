@@ -5,13 +5,13 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>PDBStructure</string>
+    <string>Structure</string>
     <key>CFBundleIdentifier</key>
-    <string>edu.berkeley.PDBStructure</string>
+    <string>edu.berkeley.structure</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>PDBStructure</string>
+    <string>Structure</string>
     <key>CFBundlePackageType</key>
     <string>BNDL</string>
     <key>CFBundleShortVersionString</key>
@@ -19,7 +19,7 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>NSPrincipalClass</key>
-    <string>PDBStructureView</string>
+    <string>StructureView</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
 </dict>

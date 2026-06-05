@@ -23,7 +23,7 @@ final class PDBFetcher {
 
         let appSupport = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        self.cacheDir = appSupport.appendingPathComponent("PDBStructure/cache", isDirectory: true)
+        self.cacheDir = appSupport.appendingPathComponent("Structure/cache", isDirectory: true)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
 
         self.ids = loadIDs()
@@ -32,7 +32,7 @@ final class PDBFetcher {
     private func loadIDs() -> [String] {
         guard let url = bundle.url(forResource: "pdb_entry_type", withExtension: "txt"),
               let text = try? String(contentsOf: url, encoding: .utf8) else {
-            NSLog("PDBStructure: pdb_entry_type.txt missing from bundle")
+            NSLog("Structure: pdb_entry_type.txt missing from bundle")
             return []
         }
         var out: [String] = []
@@ -81,7 +81,7 @@ final class PDBFetcher {
             self.session.dataTask(with: url) { data, response, error in
                 DispatchQueue.global(qos: .userInitiated).async {
                     if let error {
-                        NSLog("PDBStructure: download error for \(id): \(error.localizedDescription)")
+                        NSLog("Structure: download error for \(id): \(error.localizedDescription)")
                         if let parsed = self.randomBundled() { completion(.success(parsed)); return }
                         completion(.failure(error)); return
                     }

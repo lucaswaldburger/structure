@@ -1,10 +1,10 @@
 #!/usr/bin/env zsh
-# Builds PDBStructure.saver without Xcode using swiftc directly.
-# Output: build/PDBStructure.saver
+# Builds Structure.saver without Xcode using swiftc directly.
+# Output: build/Structure.saver
 set -euo pipefail
 cd "${0:A:h}"
 
-NAME=PDBStructure
+NAME=Structure
 BUILD=build
 SAVER="$BUILD/$NAME.saver"
 CONTENTS="$SAVER/Contents"

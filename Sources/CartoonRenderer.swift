@@ -7,7 +7,7 @@ import simd
 /// records) get thicker, color-modulated segments.
 enum CartoonRenderer: Renderer {
 
-    private static let subSamples = 8
+    private static let subSamples = 16
 
     static func build(from s: ParsedStructure) -> SCNNode {
         let root = SCNNode()
@@ -41,9 +41,9 @@ enum CartoonRenderer: Renderer {
         // Three shared cylinder geometries — one per SS state. Each uses node.scale
         // for per-segment radius/length so geometry can be shared across hundreds of
         // segments per chain.
-        let helixGeom = unitCyl(color: blend(chainColor, with: NSColor.systemRed,    t: 0.45), radial: 10)
-        let sheetGeom = unitCyl(color: blend(chainColor, with: NSColor.systemYellow, t: 0.45), radial: 10)
-        let coilGeom  = unitCyl(color: chainColor, radial: 8)
+        let helixGeom = unitCyl(color: blend(chainColor, with: NSColor.systemRed,    t: 0.45), radial: 18)
+        let sheetGeom = unitCyl(color: blend(chainColor, with: NSColor.systemYellow, t: 0.45), radial: 18)
+        let coilGeom  = unitCyl(color: chainColor, radial: 14)
 
         for i in 0..<(points.count - 1) {
             let p0 = points[max(i - 1, 0)]

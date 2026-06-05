@@ -29,7 +29,7 @@ final class ConfigureSheetController: NSObject {
             backing: .buffered,
             defer: false
         )
-        win.title = "PDB Structure"
+        win.title = "Structure"
 
         let content = NSView()
         content.translatesAutoresizingMaskIntoConstraints = false

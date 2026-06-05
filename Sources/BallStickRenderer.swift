@@ -15,7 +15,7 @@ enum BallStickRenderer: Renderer {
         func sphere(for element: String) -> SCNGeometry {
             if let g = spheres[element] { return g }
             let g = SCNSphere(radius: 0.5)
-            g.segmentCount = 10
+            g.segmentCount = 24
             let mat = SCNMaterial()
             mat.diffuse.contents = CPKPalette.color(forElement: element)
             mat.specular.contents = NSColor(white: 0.6, alpha: 1)
@@ -35,7 +35,7 @@ enum BallStickRenderer: Renderer {
 
         // Bonds: spatial-hash distance inference, single neutral cylinder geometry.
         let unitCyl = SCNCylinder(radius: 1, height: 1)
-        unitCyl.radialSegmentCount = 6
+        unitCyl.radialSegmentCount = 12
         let bondMat = SCNMaterial()
         bondMat.diffuse.contents = NSColor(white: 0.6, alpha: 1)
         bondMat.lightingModel = .blinn

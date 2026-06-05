@@ -2,8 +2,8 @@ import Cocoa
 import ScreenSaver
 import SceneKit
 
-@objc(PDBStructureView)
-public final class PDBStructureView: ScreenSaverView {
+@objc(StructureView)
+public final class StructureView: ScreenSaverView {
 
     private let scnView = SCNView()
     private let scene = SCNScene()
@@ -42,7 +42,7 @@ public final class PDBStructureView: ScreenSaverView {
         scnView.autoresizingMask = [.width, .height]
         scnView.scene = scene
         scnView.backgroundColor = .black
-        scnView.antialiasingMode = .multisampling4X
+        scnView.antialiasingMode = .multisampling16X
         scnView.allowsCameraControl = false
         addSubview(scnView)
 
@@ -80,6 +80,24 @@ public final class PDBStructureView: ScreenSaverView {
         triggerSwap()
     }
 
+    /// Bind every layer-backed subview's contentsScale to the window's
+    /// backingScaleFactor. Without this, NSTextField text rasterizes at 1x
+    /// into the parent layer and looks fuzzy on Retina. Fires when the view
+    /// attaches to a window and any time the backing scale changes (e.g.
+    /// dragged between displays).
+    public override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        let scale = window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor
+            ?? 2
+        applyContentsScale(scale, to: self)
+    }
+
+    private func applyContentsScale(_ scale: CGFloat, to view: NSView) {
+        view.layer?.contentsScale = scale
+        for sub in view.subviews { applyContentsScale(scale, to: sub) }
+    }
+
     public override func animateOneFrame() {
         super.animateOneFrame()
         if Date().timeIntervalSince(lastSwapAt) > Defaults.displayPeriod {
@@ -103,7 +121,7 @@ public final class PDBStructureView: ScreenSaverView {
                     self.infoPanel.isHidden = self.isPreviewMode || !Defaults.fullAnnotation
                     self.infoPanel.update(with: parsed)
                 case .failure(let err):
-                    NSLog("PDBStructure: fetch failed: \(err)")
+                    NSLog("Structure: fetch failed: \(err)")
                     self.lastSwapAt = .distantPast
                 }
             }
@@ -160,9 +178,9 @@ public final class PDBStructureView: ScreenSaverView {
         let stamp = formatter.string(from: Date())
         let url = FileManager.default
             .urls(for: .desktopDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("PDBStructure-\(id)-\(stamp).png")
+            .appendingPathComponent("Structure-\(id)-\(stamp).png")
         try? png.write(to: url)
-        NSLog("PDBStructure: screenshot → \(url.path)")
+        NSLog("Structure: screenshot → \(url.path)")
     }
 
     // MARK: Configure sheet

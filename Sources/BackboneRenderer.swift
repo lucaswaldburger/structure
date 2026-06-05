@@ -25,10 +25,10 @@ enum BackboneRenderer: Renderer {
 
         // Shared geometry across all atoms/bonds of this chain.
         let sphere = SCNSphere(radius: 1.5)
-        sphere.segmentCount = 10
+        sphere.segmentCount = 32
         sphere.materials = [mat]
         let unitCyl = SCNCylinder(radius: 1, height: 1)
-        unitCyl.radialSegmentCount = 8
+        unitCyl.radialSegmentCount = 16
         unitCyl.materials = [mat]
 
         var prev: SIMD3<Float>?

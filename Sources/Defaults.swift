@@ -2,7 +2,7 @@ import Foundation
 import ScreenSaver
 
 enum Defaults {
-    private static let moduleName = "PDBStructure"
+    private static let moduleName = "Structure"
 
     private static var store: ScreenSaverDefaults {
         ScreenSaverDefaults(forModuleWithName: moduleName)!
