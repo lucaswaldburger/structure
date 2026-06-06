@@ -15,7 +15,7 @@ enum Defaults {
             "EnableInternetAccess":  true,
             "FullTextualAnnotation": true,
             "OnlyLoadLocalFiles":    false,
-            "RenderMode":            RenderMode.backbone.rawValue,
+            "RenderMode":            RenderMode.ribbon.rawValue,
         ])
     }
 
@@ -26,7 +26,7 @@ enum Defaults {
     static var onlyLocal:       Bool       { store.bool(forKey: "OnlyLoadLocalFiles") }
 
     static var renderMode: RenderMode {
-        get { RenderMode(rawValue: store.integer(forKey: "RenderMode")) ?? .backbone }
+        get { RenderMode(rawValue: store.integer(forKey: "RenderMode")) ?? .ribbon }
         set { store.set(newValue.rawValue, forKey: "RenderMode"); store.synchronize() }
     }
 

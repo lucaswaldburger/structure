@@ -17,7 +17,7 @@ public final class StructureView: ScreenSaverView {
     private var isPreviewMode = false
 
     private var currentStructure: ParsedStructure?
-    private var currentMode: RenderMode = .backbone
+    private var currentMode: RenderMode = .ribbon
 
     public override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)

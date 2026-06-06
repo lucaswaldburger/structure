@@ -2,10 +2,10 @@ import AppKit
 import SceneKit
 import simd
 
-/// Tube-style cartoon: Catmull-Rom spline through CA atoms, sampled at sub-residue
-/// resolution and drawn as short cylinders. Helix and sheet spans (from HELIX/SHEET
-/// records) get thicker, color-modulated segments.
-enum CartoonRenderer: Renderer {
+/// Ribbon: Catmull-Rom spline through CA atoms, sampled at sub-residue resolution and
+/// drawn as short cylinders. Helix and sheet spans (from HELIX/SHEET records) get
+/// thicker, color-modulated segments.
+enum RibbonRenderer: Renderer {
 
     private static let subSamples = 16
 

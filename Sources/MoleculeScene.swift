@@ -1,2 +1,2 @@
 // Intentionally empty — content was split into Renderer.swift, BackboneRenderer.swift,
-// BallStickRenderer.swift, SpacefillRenderer.swift, CartoonRenderer.swift, and Palettes.swift.
+// BallStickRenderer.swift, SpacefillRenderer.swift, RibbonRenderer.swift, and Palettes.swift.

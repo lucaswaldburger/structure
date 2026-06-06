@@ -11,10 +11,10 @@ sandboxed cache under `~/Library/Application Support`).
 
 | Mode | Description |
 |---|---|
+| Ribbon (default) | Catmull-Rom spline through CAs, helix and sheet thickening from HELIX/SHEET records |
 | Backbone trace | CA spheres + CA–CA cylinders, colored by chain |
 | Ball and stick | All atoms (CPK colors) with distance-inferred bonds |
 | Spacefill (CPK) | Van der Waals spheres in CPK colors |
-| Cartoon (tube) | Catmull-Rom spline through CAs, helix and sheet thickening from HELIX/SHEET records |
 
 Selectable from the configure sheet in System Settings.
 
@@ -89,7 +89,7 @@ sandboxed `legacyScreenSaver` host, this maps to
   (HEADER / TITLE / COMPND / SOURCE / EXPDTA / REMARK 2 / AUTHOR), and
   secondary structure (`HELIX` / `SHEET`) from the first MODEL.
 - Renderer modules (`BackboneRenderer`, `BallStickRenderer`, `SpacefillRenderer`,
-  `CartoonRenderer`) each build an `SCNNode` tree from a parsed structure.
+  `RibbonRenderer`) each build an `SCNNode` tree from a parsed structure.
 - `InfoPanel` (an attributed `NSTextField`) overlays PDB ID + classification,
   title, authors, method + resolution, source organism, and a per-chain list
   with chain letters colored to match the rendering.

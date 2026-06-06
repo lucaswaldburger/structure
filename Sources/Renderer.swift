@@ -8,14 +8,14 @@ enum RenderMode: Int, CaseIterable {
     case backbone     = 0
     case ballAndStick = 1
     case spacefill    = 2
-    case cartoon      = 3
+    case ribbon       = 3
 
     var title: String {
         switch self {
         case .backbone:     return "Backbone trace"
         case .ballAndStick: return "Ball and stick"
         case .spacefill:    return "Spacefill (CPK)"
-        case .cartoon:      return "Cartoon (tube)"
+        case .ribbon:       return "Ribbon"
         }
     }
 
@@ -24,7 +24,7 @@ enum RenderMode: Int, CaseIterable {
         case .backbone:     return BackboneRenderer.self
         case .ballAndStick: return BallStickRenderer.self
         case .spacefill:    return SpacefillRenderer.self
-        case .cartoon:      return CartoonRenderer.self
+        case .ribbon:       return RibbonRenderer.self
         }
     }
 
