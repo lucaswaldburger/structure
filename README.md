@@ -7,7 +7,7 @@ Modern Swift re-implementation of [bblonder/structure](https://github.com/bblond
 — same idea, same name, updated for current macOS (Swift, SceneKit, `URLSession`,
 sandboxed cache under `~/Library/Application Support`).
 
-![Structure screensaver: hemoglobin (PDB 2DHB) rotating through every render mode](media/structure.gif)
+![Structure screensaver: green fluorescent protein (PDB 1GFL) rotating through every render mode](media/structure.gif)
 
 ## Render modes
 

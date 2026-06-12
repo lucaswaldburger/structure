@@ -120,7 +120,7 @@ for s in stills {
 // Animated GIF: one structure rotating continuously while cycling every render
 // mode. Total spans exactly one revolution so the loop is seamless.
 let gifSize = CGSize(width: 520, height: 340)
-let gifID = "2dhb"
+let gifID = "1gfl"
 let modes: [RenderMode] = [.backbone, .ballAndStick, .spacefill, .ribbon, .cartoon]
 let framesPerMode = 10
 let totalFrames = modes.count * framesPerMode
