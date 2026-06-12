@@ -7,16 +7,36 @@ Modern Swift re-implementation of [bblonder/structure](https://github.com/bblond
 — same idea, same name, updated for current macOS (Swift, SceneKit, `URLSession`,
 sandboxed cache under `~/Library/Application Support`).
 
+![Structure screensaver: hemoglobin (PDB 2DHB) rotating through every render mode](media/structure.gif)
+
 ## Render modes
 
-| Mode | Description |
+| | |
 |---|---|
-| Ribbon (default) | Catmull-Rom spline through CAs, helix and sheet thickening from HELIX/SHEET records |
-| Backbone trace | CA spheres + CA–CA cylinders, colored by chain |
-| Ball and stick | All atoms (CPK colors) with distance-inferred bonds |
-| Spacefill (CPK) | Van der Waals spheres in CPK colors |
+| **Backbone trace**<br>CA spheres + CA–CA cylinders, colored by chain | **Ball and stick**<br>All atoms (CPK colors) with distance-inferred bonds |
+| ![Backbone trace of hemoglobin, PDB 2DHB](media/backbone-2dhb.png) | ![Ball-and-stick of B-DNA dodecamer, PDB 1BNA](media/ballstick-1bna.png) |
+| **Spacefill (CPK)**<br>Van der Waals spheres in CPK colors | **Ribbon** (default)<br>Extruded ribbon mesh with PyMOL-style helix/sheet shapes |
+| ![Spacefill of myoglobin, PDB 1MBN](media/spacefill-1mbn.png) | ![Ribbon mesh of green fluorescent protein, PDB 1GFL](media/ribbon-1gfl.png) |
+| **Cartoon (tube)**<br>Catmull-Rom spline through CAs, helix/sheet thickening | |
+| ![Cartoon tube of green fluorescent protein, PDB 1GFL](media/cartoon-1gfl.png) | |
 
-Selectable from the configure sheet in System Settings.
+Modern macOS no longer shows the legacy in-saver "Options…" button, so the
+render mode is **not** a runtime setting. Instead each mode ships as its own
+installable saver, built side by side:
+
+| Saver | Render mode |
+|---|---|
+| `Structure-Backbone.saver`  | Backbone trace |
+| `Structure-BallStick.saver` | Ball and stick |
+| `Structure-Spacefill.saver` | Spacefill (CPK) |
+| `Structure-Ribbon.saver`    | Ribbon (extruded mesh) |
+| `Structure-Cartoon.saver`   | Cartoon (tube) |
+
+Install whichever you like — they appear as separate entries (e.g. "Structure
+(Ribbon)") in System Settings and can coexist. The remaining settings (display
+period, background color, cache, internet, info overlay) are shared across all
+variants and are set via the standalone **Structure Settings** app or the
+`structure-config` CLI.
 
 ## Build
 
@@ -28,9 +48,18 @@ curl -sSfL https://files.wwpdb.org/pub/pdb/derived_data/pdb_entry_type.txt \
     -o Resources/pdb_entry_type.txt
 ```
 
-Then pick one of three build paths:
+Then pick a build path. Both produce all four saver variants plus the
+**Structure Settings** app.
 
-### A. XcodeGen → Xcode (recommended)
+### A. Command-line, no Xcode project
+
+```sh
+./build.sh
+ls build/                       # Structure-Backbone.saver, …, Structure Settings.app
+open build/Structure-Cartoon.saver
+```
+
+### B. XcodeGen → Xcode
 
 ```sh
 brew install xcodegen
@@ -38,28 +67,13 @@ xcodegen
 open Structure.xcodeproj
 ```
 
-Build with **⌘B**, then in Finder right-click the `.saver` product
-(under Products in the navigator → *Show in Finder*) and double-click it.
-System Settings will offer to install it.
+There is one target per variant (`StructureBackbone`, `StructureBallStick`,
+`StructureSpacefill`, `StructureCartoon`) plus `StructureSettings`. Build a
+target with **⌘B**, then in Finder right-click its `.saver` product
+(under Products → *Show in Finder*) and double-click to install.
 
-### B. Command-line, no Xcode project
-
-```sh
-./build.sh
-open build/Structure.saver
-```
-
-### C. Manual Xcode project
-
-If you don't want XcodeGen, create the project by hand:
-
-1. Xcode → File → New → Project → macOS → **Screen Saver**, name it
-   `Structure`, language Swift.
-2. Replace the default `.swift` and `Info.plist` with the ones in this repo.
-3. Add `pdb_entry_type.txt` and the `PDB/` folder to the target as bundle
-   resources (drag into the project navigator, ensure target membership is
-   checked).
-4. Build.
+Each variant is the same shared code in `Sources/` plus a one-line subclass in
+`Variants/<Mode>/PrincipalView.swift` that pins the render mode.
 
 ## Install
 
@@ -67,11 +81,12 @@ The first time you load an ad-hoc-signed screensaver, macOS may refuse with
 "can't be opened because it is from an unidentified developer." Right-click
 the `.saver` and choose **Open** to bypass once.
 
-System Settings → Screen Saver → select **Structure** from the list.
+System Settings → Screen Saver → select the variant you installed (e.g.
+**Structure (Cartoon)**) from the list.
 
 The cache of downloaded `.pdb` files lives at
-`~/Library/Application Support/Structure/cache/` (capped by the configure
-sheet's *Cache size* setting, oldest-accessed evicted first). Under the
+`~/Library/Application Support/Structure/cache/` (capped by the *Cache size*
+setting, oldest-accessed evicted first). Under the
 sandboxed `legacyScreenSaver` host, this maps to
 `~/Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Application Support/Structure/cache/`.
 
@@ -100,7 +115,18 @@ Stored via `ScreenSaverDefaults(forModuleWithName: "Structure")`:
 
 - `DisplayPeriod` (Int, default 30) — seconds between structure swaps
 - `CacheSize` (Int, default 100) — max on-disk cached PDB files
-- `RenderMode` (Int 0-3, default 0) — see render-modes table above
+- `RenderMode` (Int 0-3, default 0) — used only by a generic build; the per-mode
+  saver variants pin their mode and ignore this key
+- `BackgroundColor` (String, default `#000000`) — scene background, `#RRGGBB`
 - `EnableInternetAccess` (Bool, default true)
 - `OnlyLoadLocalFiles` (Bool, default false)
 - `FullTextualAnnotation` (Bool, default true)
+
+## Media
+
+The images and GIF above are rendered through the saver's own SceneKit
+renderers (no external tools) from the bundled offline PDBs. Regenerate them with:
+
+```sh
+./Tools/make-media.sh   # writes media/ (still PNGs + structure.gif)
+```

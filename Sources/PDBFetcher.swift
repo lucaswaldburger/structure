@@ -14,6 +14,15 @@ final class PDBFetcher {
     private var ids: [String] = []
     private let bundle: Bundle
 
+    /// Called (on the main queue) with human-readable status while a structure
+    /// is being fetched, e.g. "Downloading 1ABC… 42%".
+    var statusHandler: ((String) -> Void)?
+    private var progressObservation: NSKeyValueObservation?
+
+    private func report(_ message: String) {
+        DispatchQueue.main.async { [weak self] in self?.statusHandler?(message) }
+    }
+
     init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 20
@@ -55,12 +64,14 @@ final class PDBFetcher {
 
             // Local-only mode → only use bundled PDBs.
             if Defaults.onlyLocal {
+                self.report("Loading bundled structure…")
                 if let parsed = self.randomBundled() { completion(.success(parsed)); return }
                 completion(.failure(FetchError.noLocalStructures)); return
             }
 
             // Internet disabled but not local-only → still prefer bundled, then cache.
             if !Defaults.enableInternet {
+                self.report("Loading local structure…")
                 if let parsed = self.randomBundled() { completion(.success(parsed)); return }
                 if let parsed = self.randomCached()  { completion(.success(parsed)); return }
                 completion(.failure(FetchError.noLocalStructures)); return
@@ -77,8 +88,12 @@ final class PDBFetcher {
                 completion(.success(PDBParser.parse(text, id: id))); return
             }
 
-            let url = URL(string: "https://files.rcsb.org/download/\(id.uppercased()).pdb")!
-            self.session.dataTask(with: url) { data, response, error in
+            let label = id.uppercased()
+            let url = URL(string: "https://files.rcsb.org/download/\(label).pdb")!
+            self.report("Downloading \(label)…")
+            let task = self.session.dataTask(with: url) { data, response, error in
+                self.progressObservation?.invalidate()
+                self.progressObservation = nil
                 DispatchQueue.global(qos: .userInitiated).async {
                     if let error {
                         NSLog("Structure: download error for \(id): \(error.localizedDescription)")
@@ -98,7 +113,13 @@ final class PDBFetcher {
                     self.evictIfNeeded()
                     completion(.success(PDBParser.parse(text, id: id)))
                 }
-            }.resume()
+            }
+            // Report download percentage when the server provides Content-Length.
+            self.progressObservation = task.progress.observe(\.fractionCompleted) { [weak self] prog, _ in
+                let pct = Int((prog.fractionCompleted * 100).rounded())
+                if pct > 0 { self?.report("Downloading \(label)… \(pct)%") }
+            }
+            task.resume()
         }
     }
 

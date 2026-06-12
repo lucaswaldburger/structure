@@ -9,6 +9,7 @@ enum RenderMode: Int, CaseIterable {
     case ballAndStick = 1
     case spacefill    = 2
     case ribbon       = 3
+    case cartoon      = 4
 
     var title: String {
         switch self {
@@ -16,6 +17,7 @@ enum RenderMode: Int, CaseIterable {
         case .ballAndStick: return "Ball and stick"
         case .spacefill:    return "Spacefill (CPK)"
         case .ribbon:       return "Ribbon"
+        case .cartoon:      return "Cartoon (tube)"
         }
     }
 
@@ -25,6 +27,7 @@ enum RenderMode: Int, CaseIterable {
         case .ballAndStick: return BallStickRenderer.self
         case .spacefill:    return SpacefillRenderer.self
         case .ribbon:       return RibbonRenderer.self
+        case .cartoon:      return CartoonRenderer.self
         }
     }
 

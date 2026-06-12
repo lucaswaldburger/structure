@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Configure the Structure screensaver. macOS Sonoma+ hides the "Options..." button
+# for legacy .saver bundles, so we write the same ScreenSaverDefaults keys directly.
+set -euo pipefail
+
+MODULE="Structure"
+
+show() {
+  echo "Current settings (module: $MODULE):"
+  for k in DisplayPeriod CacheSize RenderMode BackgroundColor EnableInternetAccess OnlyLoadLocalFiles FullTextualAnnotation; do
+    v=$(defaults -currentHost read "$MODULE" "$k" 2>/dev/null || echo "<default>")
+    printf "  %-22s = %s\n" "$k" "$v"
+  done
+  echo
+  echo "RenderMode values: 0=backbone 1=ballstick 2=spacefill 3=ribbon 4=cartoon"
+}
+
+usage() {
+  cat <<EOF
+Usage:
+  $(basename "$0")                                show current settings
+  $(basename "$0") interactive                    prompt for each option
+  $(basename "$0") set <Key> <Value>              set one key
+  $(basename "$0") reset                          delete all overrides (back to defaults)
+
+Keys:
+  DisplayPeriod          int (seconds between swaps, e.g. 30)
+  CacheSize              int (max cached PDBs, e.g. 100)
+  RenderMode             int (0=backbone 1=ballstick 2=spacefill 3=ribbon 4=cartoon)
+  BackgroundColor        string (hex, e.g. #000000 or #1a1a2e)
+  EnableInternetAccess   bool (YES/NO)
+  OnlyLoadLocalFiles     bool (YES/NO)
+  FullTextualAnnotation  bool (YES/NO)
+
+Examples:
+  $(basename "$0") set DisplayPeriod 10
+  $(basename "$0") set RenderMode 3
+  $(basename "$0") set BackgroundColor '#1a1a2e'
+  $(basename "$0") set OnlyLoadLocalFiles NO
+EOF
+}
+
+set_key() {
+  local key="$1" val="$2"
+  case "$key" in
+    DisplayPeriod|CacheSize|RenderMode)
+      defaults -currentHost write "$MODULE" "$key" -int "$val" ;;
+    BackgroundColor)
+      defaults -currentHost write "$MODULE" "$key" -string "$val" ;;
+    EnableInternetAccess|OnlyLoadLocalFiles|FullTextualAnnotation)
+      defaults -currentHost write "$MODULE" "$key" -bool "$val" ;;
+    *) echo "Unknown key: $key"; usage; exit 1 ;;
+  esac
+  echo "Set $key = $val"
+}
+
+interactive() {
+  prompt() {
+    local key="$1" desc="$2" cur
+    cur=$(defaults -currentHost read "$MODULE" "$key" 2>/dev/null || echo "")
+    read -r -p "$desc [$cur]: " v
+    [[ -z "$v" ]] && return
+    set_key "$key" "$v"
+  }
+  prompt DisplayPeriod         "Display period in seconds (int)"
+  prompt CacheSize             "Cache size (int)"
+  prompt RenderMode            "Render mode (0=backbone 1=ballstick 2=spacefill 3=ribbon 4=cartoon)"
+  prompt BackgroundColor       "Background color (hex, e.g. #000000)"
+  prompt EnableInternetAccess  "Enable internet access (YES/NO)"
+  prompt OnlyLoadLocalFiles    "Only use bundled/cached PDBs (YES/NO)"
+  prompt FullTextualAnnotation "Show info overlay (YES/NO)"
+  echo
+  show
+}
+
+case "${1:-show}" in
+  show|"")     show ;;
+  interactive) interactive ;;
+  set)         shift; [[ $# -eq 2 ]] || { usage; exit 1; }; set_key "$1" "$2" ;;
+  reset)       defaults -currentHost delete "$MODULE" 2>/dev/null || true; echo "Reset to defaults." ;;
+  -h|--help|help) usage ;;
+  *)           usage; exit 1 ;;
+esac

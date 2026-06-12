@@ -3,7 +3,12 @@ import ScreenSaver
 import SceneKit
 
 @objc(StructureView)
-public final class StructureView: ScreenSaverView {
+public class StructureView: ScreenSaverView {
+
+    /// Per-variant override. When non-nil, the saver always renders in this mode
+    /// and ignores the stored `RenderMode` default (the build produces one saver
+    /// bundle per mode, each a thin subclass returning its mode here).
+    var forcedRenderMode: RenderMode? { nil }
 
     private let scnView = SCNView()
     private let scene = SCNScene()
@@ -14,6 +19,7 @@ public final class StructureView: ScreenSaverView {
     private var lastSwapAt: Date = .distantPast
     private var swapInFlight = false
     private let infoPanel = InfoPanel()
+    private let statusOverlay = StatusOverlay()
     private var isPreviewMode = false
 
     private var currentStructure: ParsedStructure?
@@ -23,14 +29,14 @@ public final class StructureView: ScreenSaverView {
         super.init(frame: frame, isPreview: isPreview)
         self.isPreviewMode = isPreview
         Defaults.registerDefaults()
-        self.currentMode = Defaults.renderMode
+        self.currentMode = forcedRenderMode ?? Defaults.renderMode
         commonInit()
     }
 
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         Defaults.registerDefaults()
-        self.currentMode = Defaults.renderMode
+        self.currentMode = forcedRenderMode ?? Defaults.renderMode
         commonInit()
     }
 
@@ -41,12 +47,11 @@ public final class StructureView: ScreenSaverView {
         scnView.frame = bounds
         scnView.autoresizingMask = [.width, .height]
         scnView.scene = scene
-        scnView.backgroundColor = .black
         scnView.antialiasingMode = .multisampling16X
         scnView.allowsCameraControl = false
         addSubview(scnView)
 
-        scene.background.contents = NSColor.black
+        applyBackgroundColor()
 
         let cam = SCNCamera()
         cam.zNear = 0.1
@@ -76,6 +81,21 @@ public final class StructureView: ScreenSaverView {
             infoPanel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -36),
             infoPanel.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.48),
         ])
+
+        statusOverlay.translatesAutoresizingMaskIntoConstraints = false
+        statusOverlay.isHidden = true
+        addSubview(statusOverlay)
+        NSLayoutConstraint.activate([
+            statusOverlay.centerXAnchor.constraint(equalTo: centerXAnchor),
+            statusOverlay.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+
+        // While no structure is on screen yet (e.g. first run, nothing cached),
+        // surface the download/loading status from the fetcher.
+        fetcher.statusHandler = { [weak self] message in
+            guard let self, self.moleculeNode == nil else { return }
+            self.statusOverlay.show(message)
+        }
 
         triggerSwap()
     }
@@ -110,22 +130,34 @@ public final class StructureView: ScreenSaverView {
         swapInFlight = true
         lastSwapAt = Date()
 
+        if moleculeNode == nil { statusOverlay.show("Connecting…") }
+
         fetcher.fetchRandom { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.swapInFlight = false
                 switch result {
                 case .success(let parsed):
+                    self.statusOverlay.hide()
                     self.currentStructure = parsed
                     self.installMolecule(parsed, mode: self.currentMode)
                     self.infoPanel.isHidden = self.isPreviewMode || !Defaults.fullAnnotation
                     self.infoPanel.update(with: parsed)
                 case .failure(let err):
                     NSLog("Structure: fetch failed: \(err)")
+                    if self.moleculeNode == nil {
+                        self.statusOverlay.show("Connection failed — retrying…")
+                    }
                     self.lastSwapAt = .distantPast
                 }
             }
         }
+    }
+
+    private func applyBackgroundColor() {
+        let color = Defaults.backgroundColor
+        scnView.backgroundColor = color
+        scene.background.contents = color
     }
 
     private func installMolecule(_ parsed: ParsedStructure, mode: RenderMode) {
@@ -157,9 +189,12 @@ public final class StructureView: ScreenSaverView {
         case "2":
             saveScreenshot()
         case "3":
-            currentMode = currentMode.next()
-            Defaults.renderMode = currentMode
-            if let s = currentStructure { installMolecule(s, mode: currentMode) }
+            // Fixed-mode variants ignore the cycle key so they stay on their mode.
+            if forcedRenderMode == nil {
+                currentMode = currentMode.next()
+                Defaults.renderMode = currentMode
+                if let s = currentStructure { installMolecule(s, mode: currentMode) }
+            }
         case "4":
             triggerSwap()
         default:
@@ -183,17 +218,4 @@ public final class StructureView: ScreenSaverView {
         NSLog("Structure: screenshot → \(url.path)")
     }
 
-    // MARK: Configure sheet
-
-    public override var hasConfigureSheet: Bool { true }
-    public override var configureSheet: NSWindow? {
-        ConfigureSheetController.shared.window(applyHandler: { [weak self] in
-            guard let self else { return }
-            self.currentMode = Defaults.renderMode
-            self.infoPanel.isHidden = self.isPreviewMode || !Defaults.fullAnnotation
-            if let s = self.currentStructure {
-                self.installMolecule(s, mode: self.currentMode)
-            }
-        })
-    }
 }

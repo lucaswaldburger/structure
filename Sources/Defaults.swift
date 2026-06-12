@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import ScreenSaver
 
 enum Defaults {
@@ -16,6 +17,7 @@ enum Defaults {
             "FullTextualAnnotation": true,
             "OnlyLoadLocalFiles":    false,
             "RenderMode":            RenderMode.ribbon.rawValue,
+            "BackgroundColor":       "#000000",
         ])
     }
 
@@ -24,6 +26,10 @@ enum Defaults {
     static var enableInternet:  Bool       { store.bool(forKey: "EnableInternetAccess") }
     static var fullAnnotation:  Bool       { store.bool(forKey: "FullTextualAnnotation") }
     static var onlyLocal:       Bool       { store.bool(forKey: "OnlyLoadLocalFiles") }
+
+    static var backgroundColor: NSColor {
+        NSColor(hex: store.string(forKey: "BackgroundColor") ?? "#000000") ?? .black
+    }
 
     static var renderMode: RenderMode {
         get { RenderMode(rawValue: store.integer(forKey: "RenderMode")) ?? .ribbon }
