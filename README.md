@@ -77,12 +77,40 @@ Each variant is the same shared code in `Sources/` plus a one-line subclass in
 
 ## Install
 
-The first time you load an ad-hoc-signed screensaver, macOS may refuse with
-"can't be opened because it is from an unidentified developer." Right-click
-the `.saver` and choose **Open** to bypass once.
+The savers are ad-hoc signed, not notarized. macOS quarantines anything you
+**download**, so on first load Gatekeeper blocks the saver with:
 
-System Settings → Screen Saver → select the variant you installed (e.g.
-**Structure (Cartoon)**) from the list.
+> **"Structure-Backbone.saver" Not Opened.** Apple could not verify
+> "Structure-Backbone.saver" is free of malware that may harm your Mac or
+> compromise your privacy.
+
+On macOS 15 (Sequoia) and later the old right-click → **Open** bypass no longer
+works for screensavers. The fix is to clear the quarantine flag — that flag is
+the only thing triggering the block.
+
+**From a downloaded release.** After unzipping the `.saver` (e.g. into
+`~/Downloads`), remove the quarantine flag, then open it:
+
+```sh
+xattr -dr com.apple.quarantine ~/Downloads/Structure-*.saver
+open ~/Downloads/Structure-Backbone.saver      # or move it to ~/Library/Screen Savers/
+```
+
+**From a checkout.** `install.sh` does everything — strips the quarantine flag
+and copies every built variant into `~/Library/Screen Savers/`:
+
+```sh
+./build.sh          # produces build/Structure-*.saver
+./install.sh        # installs them (also handles ~/Downloads/Structure-*.saver)
+```
+
+Then open **System Settings → Screen Saver** and select the variant you
+installed (e.g. **Structure (Ribbon)**) from the list.
+
+> **The permanent fix** is to sign the bundles with a Developer ID certificate
+> and notarize them with Apple, after which downloaders get no prompt at all.
+> That requires a paid Apple Developer account; until then the `xattr` step
+> above (which `install.sh` runs for you) is the supported install path.
 
 The cache of downloaded `.pdb` files lives at
 `~/Library/Application Support/Structure/cache/` (capped by the *Cache size*

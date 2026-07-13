@@ -1,0 +1,133 @@
+# Build the Structure screensaver variants and attach them to a GitHub Release.
+#
+# Signing behaviour is controlled entirely by whether the signing secrets exist:
+#
+#   * With Developer ID secrets set, each bundle is re-signed with the hardened
+#     runtime, notarized with Apple, and stapled. Downloaders then get NO
+#     Gatekeeper prompt at all — this is the permanent fix for the
+#     "Apple could not verify ... is free of malware" block.
+#
+#   * Without them, the job still succeeds and ships the ad-hoc-signed bundles
+#     from build.sh. Those are quarantined on download, so install.sh (shipped
+#     as a release asset) or `xattr -dr com.apple.quarantine` is required — see
+#     the README Install section.
+#
+# Repository secrets for the notarized path (Settings -> Secrets -> Actions):
+#   MACOS_CERT_P12_BASE64  base64 of your "Developer ID Application" .p12
+#                          (e.g. `base64 -i cert.p12 | pbcopy`)
+#   MACOS_CERT_PASSWORD    the .p12 export password
+#   MACOS_SIGN_IDENTITY    e.g. "Developer ID Application: Jane Doe (TEAMID123)"
+#   APPLE_ID               Apple ID email used for notarization
+#   APPLE_TEAM_ID          10-char Apple Developer Team ID
+#   APPLE_APP_PASSWORD     an app-specific password (appleid.apple.com)
+#
+# build.sh produces universal (arm64 + x86_64) bundles, so the artifacts run on
+# both Apple Silicon and Intel Macs.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # upload assets to the release
+
+jobs:
+  build:
+    runs-on: macos-14
+    env:
+      # Mapping secrets into env lets steps gate on their presence via `if:`.
+      MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch PDB id list
+        run: |
+          curl -sSfL https://files.wwpdb.org/pub/pdb/derived_data/pdb_entry_type.txt \
+            -o Resources/pdb_entry_type.txt
+
+      - name: Build savers (ad-hoc signed)
+        run: ./build.sh
+
+      - name: Import Developer ID certificate
+        if: env.MACOS_CERT_P12_BASE64 != ''
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PWD="$(uuidgen)"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN"
+          echo "$MACOS_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PWD" "$KEYCHAIN"
+          # Keep the login keychain searchable, add ours to the front.
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | sed 's/["[:space:]]//g')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Re-sign with Developer ID (hardened runtime)
+        if: env.MACOS_CERT_P12_BASE64 != ''
+        run: |
+          set -euo pipefail
+          for bundle in build/Structure-*.saver "build/Structure Settings.app"; do
+            codesign --force --options runtime --timestamp \
+              --sign "$MACOS_SIGN_IDENTITY" "$bundle"
+            codesign --verify --strict --verbose=2 "$bundle"
+          done
+
+      - name: Notarize and staple
+        if: env.MACOS_CERT_P12_BASE64 != '' && env.APPLE_ID != ''
+        run: |
+          set -euo pipefail
+          for bundle in build/Structure-*.saver "build/Structure Settings.app"; do
+            zip="$RUNNER_TEMP/notarize.zip"
+            ditto -c -k --sequesterRsrc --keepParent "$bundle" "$zip"
+            xcrun notarytool submit "$zip" \
+              --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD" --wait
+            # Staple the ticket onto the bundle so it verifies offline.
+            xcrun stapler staple "$bundle"
+            rm -f "$zip"
+          done
+
+      - name: Package release zips
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Ship install.sh so download users can de-quarantine ad-hoc builds.
+          cp install.sh dist/
+          for saver in build/Structure-*.saver; do
+            name="$(basename "$saver" .saver)"      # e.g. Structure-Ribbon
+            ditto -c -k --sequesterRsrc --keepParent "$saver" "dist/${name}.saver.zip"
+          done
+          ditto -c -k --sequesterRsrc --keepParent \
+            "build/Structure Settings.app" "dist/Structure-Settings.app.zip"
+          ls -la dist
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+      - name: Upload workflow artifacts
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: structure-savers
+          path: dist/*
