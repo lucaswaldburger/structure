@@ -19,22 +19,39 @@ if [[ ! -f Resources/pdb_entry_type.txt ]]; then
     exit 1
 fi
 
+# Universal build: one slice per arch, lipo'd together, so the savers run on
+# both Apple Silicon and Intel Macs.
+ARCHS=(arm64 x86_64)
+
+# compile_universal <output-path> <swiftc args...>   (do not pass -target/-o)
+# Compiles each arch to a temp slice and merges them into a universal binary.
+compile_universal() {
+    local out="$1"; shift
+    local tmp; tmp="$(mktemp -d)"
+    local -a slices=()
+    local arch
+    for arch in $ARCHS; do
+        local slice="$tmp/${out:t}.$arch"
+        xcrun -sdk macosx swiftc -target "$arch-apple-macos13" -O "$@" -o "$slice"
+        slices+=("$slice")
+    done
+    lipo -create "${slices[@]}" -output "$out"
+    rm -rf "$tmp"
+}
+
 build_saver() {
     local variant="$1"          # subfolder under Variants/ (e.g. Backbone)
     local saver="$BUILD/$NAME-$variant.saver"
     local contents="$saver/Contents"
     mkdir -p "$contents/MacOS" "$contents/Resources"
 
-    xcrun -sdk macosx swiftc \
-        -O \
-        -target arm64-apple-macos13 \
+    compile_universal "$contents/MacOS/$NAME" \
         -module-name "$NAME" \
         -emit-library \
         -Xlinker -bundle \
         -framework AppKit \
         -framework ScreenSaver \
         -framework SceneKit \
-        -o "$contents/MacOS/$NAME" \
         Sources/*.swift "Variants/$variant/PrincipalView.swift"
 
     cp "Variants/$variant/Info.plist" "$contents/Info.plist"
@@ -59,12 +76,9 @@ SETTINGS_APP="$BUILD/Structure Settings.app"
 SETTINGS_CONTENTS="$SETTINGS_APP/Contents"
 mkdir -p "$SETTINGS_CONTENTS/MacOS"
 
-xcrun -sdk macosx swiftc \
-    -O \
-    -target arm64-apple-macos13 \
+compile_universal "$SETTINGS_CONTENTS/MacOS/StructureSettings" \
     -framework AppKit \
     -framework ScreenSaver \
-    -o "$SETTINGS_CONTENTS/MacOS/StructureSettings" \
     SettingsApp/main.swift
 
 cp SettingsApp/Info.plist "$SETTINGS_CONTENTS/"
@@ -72,6 +86,12 @@ codesign --force --sign - --timestamp=none "$SETTINGS_APP"
 echo "Built: $SETTINGS_APP"
 
 echo
-echo "Install a saver: double-click it in Finder, or e.g.:"
-echo "  open '$BUILD/$NAME-Cartoon.saver'"
+echo "Install every variant into ~/Library/Screen Savers/:"
+echo "  ./install.sh"
+echo "Or install one by hand: open '$BUILD/$NAME-Cartoon.saver'"
 echo "Change shared settings: open '$SETTINGS_APP'"
+echo
+echo "Note: these bundles are ad-hoc signed, not notarized. Locally-built savers"
+echo "load fine, but a DOWNLOADED copy is quarantined and Gatekeeper will block"
+echo "it ('could not verify ... free of malware'). install.sh strips that flag;"
+echo "by hand it's: xattr -dr com.apple.quarantine <path to .saver>"
